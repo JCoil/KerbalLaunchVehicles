@@ -1,10 +1,15 @@
 Kerbal Launch Vehicles v0.1.7
+=============================
+
+
 
 Installation
+============
 
 Add the folder 'KerbalLaunchVehicles' to your GameData folder
 
 License
+=======
 
 The files and the code in the download are distributed under the MIT license
 
