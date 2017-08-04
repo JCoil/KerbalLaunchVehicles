@@ -86,7 +86,6 @@ namespace KerbalLaunchVehicles
 
         internal static List<Destination> LoadDestinationDefinitions()
         {
-            ValidatePaths();
             LoadRootNode();
             List<Destination> destinations = new List<Destination>();
 
@@ -110,7 +109,6 @@ namespace KerbalLaunchVehicles
 
         internal static void SaveDestinationDefinitions(List<Destination> destinations)
         {
-            ValidatePaths();
             ConfigNode destinationsNode = new ConfigNode(node_launchDestinations);
 
             foreach (var d in destinations)
@@ -135,7 +133,6 @@ namespace KerbalLaunchVehicles
 
         internal static List<VehicleFamily> LoadConfigurations()
         {
-            ValidatePaths();
             LoadRootNode();
             List<VehicleFamily> allFamilies = new List<VehicleFamily>();
 
@@ -183,7 +180,6 @@ namespace KerbalLaunchVehicles
 
         internal static void SaveConfigurations(List<VehicleFamily> families)
         {
-            ValidatePaths();
             ConfigNode familiesNode = new ConfigNode(node_families);
 
             foreach (var g in families)
@@ -261,7 +257,6 @@ namespace KerbalLaunchVehicles
 
         internal static void LoadSettings()
         {
-            ValidatePaths();
             settingsNode = ConfigNode.Load(settingsPath);
 
             if (settingsNode != null)
@@ -289,7 +284,6 @@ namespace KerbalLaunchVehicles
 
         internal static void SaveSettings()
         {
-            ValidatePaths();
             ConfigNode settingsNode = new ConfigNode(node_settings);
 
             settingsNode.AddValue(key_fontSize, klvGUI.klvGUIStyles.fontSizeRelative, "Font size adjustment between -2 and 4");

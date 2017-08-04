@@ -14,6 +14,7 @@ namespace KerbalLaunchVehicles.klvGUI
         protected bool isWindowOpen;
 
         protected Vector2 scrollPos;
+        protected Dictionary<DropDown, bool> MarkedCombos;
         protected HashSet<DropDown> ActiveCombos;
         protected string Title;
         protected ViewTab openTab = ViewTab.Families;
@@ -34,7 +35,8 @@ namespace KerbalLaunchVehicles.klvGUI
             KLVButtonImage = GameDatabase.Instance.GetTexture("KerbalLaunchVehicles/Assets/launcherIcon", false);
             Button = App.AddModApplication(OnLauncherButtonPress, OnLauncherButtonPress, null, null, null, null, visibleInScenes, KLVButtonImage);
             GUIUtilities.Log("[MOD] KLV window start");
-            ActiveCombos = new HashSet<klvGUI.DropDown>();
+            ActiveCombos = new HashSet<DropDown>();
+            MarkedCombos = new Dictionary<klvGUI.DropDown, bool>();
             CreateControls();
         }
 
@@ -52,17 +54,24 @@ namespace KerbalLaunchVehicles.klvGUI
                 WindowRect = GUILayout.Window(GetType().FullName.GetHashCode(), WindowRect, OnWindow, Title, klvGUIStyles.StandardWindow, new GUILayoutOption[0]);
 
                 // Need to call popup draws from here as the are new windows   
-                int idCounter = 0;
                 foreach (var cbo in ActiveCombos)
                 {
                     if (cbo.isExpanded)
                     {
-                        GUILayout.Window(idCounter, cbo.GetDrawRect().AddPosition(WindowRect), cbo.OnWindow, "", klvGUIStyles.PopupWindow);
-                        GUI.BringWindowToFront(idCounter);
+                        GUILayout.Window(cbo.GetHashCode(), cbo.GetDrawRect().AddPosition(WindowRect), cbo.OnWindow, "", klvGUIStyles.PopupWindow);
+                        GUI.BringWindowToFront(cbo.GetHashCode());
                     }
-                    idCounter++;
                 }
             }
+        }
+        protected void Update()
+        {
+            //Expand/collapse all marked combos then clear list
+            foreach (var pair in MarkedCombos)
+            {
+                pair.Key.SetExpanded(pair.Value);
+            }
+            MarkedCombos = new Dictionary<DropDown, bool>();
         }
 
         private Rect _windowRect;
@@ -122,6 +131,14 @@ namespace KerbalLaunchVehicles.klvGUI
         protected DropDown GetComboFromParent(IGUIControl _parent)
         {
             return ActiveCombos.FirstOrDefault(x => x.Parent == _parent);
+        }
+
+        protected void MarkComboToExpand(bool expand, DropDown dropDown)
+        {
+            if(!MarkedCombos.ContainsKey(dropDown))
+            {
+                MarkedCombos.Add(dropDown, expand);
+            }
         }
 
         // Tabs

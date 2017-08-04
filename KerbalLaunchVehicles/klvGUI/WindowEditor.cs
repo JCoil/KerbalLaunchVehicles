@@ -156,7 +156,15 @@ namespace KerbalLaunchVehicles.klvGUI
                     dropZone.DoLayout(klvGUIStyles.HighlightBox);
                     GUILayout.Space(5);
 
-                    isRootPartDecoupler = EditorLogic.RootPart.partInfo == null || EditorLogic.RootPart.partInfo.category == PartCategories.Coupling;
+                    isRootPartDecoupler = EditorLogic.RootPart.partInfo == null;
+
+//Coupling not available in ksp1.1 so we won't warn on this
+#if !VERSION1_1
+                    isRootPartDecoupler = isRootPartDecoupler || EditorLogic.RootPart.partInfo.category == PartCategories.Coupling;
+#else
+                    isRootPartDecoupler = true;
+#endif
+
                     GUILayout.Label(isRootPartDecoupler ? "" : "It is recommended to set a decoupler as the root part to detach the payload", klvGUIStyles.WarningLabel);
                     GUILayout.Space(10);
 

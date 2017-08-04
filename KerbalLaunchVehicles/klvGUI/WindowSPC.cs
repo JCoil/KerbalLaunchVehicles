@@ -56,11 +56,11 @@ namespace KerbalLaunchVehicles.klvGUI
             buttonAddDest = new GUIButton("Add", DoAddDestination, new GUILayoutOption[] { GUILayout.Width(120) });
             buttonRemoveDest = new GUIButton("Remove", DoRemoveDestination, new GUILayoutOption[] { GUILayout.Width(100) });
 
-            comboDestination = new klvGUI.DropDown(new Vector2(260, 170), KLVCore.GetAllDestinationName());
+            comboDestination = new DropDown(new Vector2(260, 170), KLVCore.GetAllDestinationName());
             RegisterCombos(comboDestination);
 
             // Settings Tab
-            textFolderPath = new klvGUI.GUITextBox("Config path:", SaveManager.vehiclesPath, "", 300, 400);
+            textFolderPath = new GUITextBox("Config path:", SaveManager.vehiclesPath, "", 300, 400);
             buttonSave = new GUIButton("Save Configurations", DoSave, null);
             buttonLoad = new GUIButton("Load Configurations", DoLoad, null);
             buttonUnload = new GUIButton("Unload All Configurations", DoUnload, null);
@@ -154,7 +154,10 @@ namespace KerbalLaunchVehicles.klvGUI
             textFolderPath.DoLayout(klvGUIStyles.StandardLabel);
             buttonSave.DoLayout(klvGUIStyles.StandardButton);
             buttonLoad.DoLayout(klvGUIStyles.StandardButton);
+
+#if DEBUG
             buttonUnload.DoLayout(klvGUIStyles.StandardButton);
+#endif
 
             GUILayout.Space(10);
             GUILayout.BeginHorizontal(GUILayout.Width(270));
@@ -269,7 +272,7 @@ namespace KerbalLaunchVehicles.klvGUI
                 KLVCore.UpdateAllVehicleNameSchemes();
                 comboDestination.SetItems(KLVCore.GetAllDestinationName());
                 //Open combo to view new addition
-                comboDestination.SetExpanded(true);
+                MarkComboToExpand(true, comboDestination);
             }
         }
 

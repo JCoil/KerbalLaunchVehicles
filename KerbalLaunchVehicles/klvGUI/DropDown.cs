@@ -79,9 +79,9 @@ namespace KerbalLaunchVehicles.klvGUI
             {
                 expandAction(this);
             }
-            else if(collapseAction != null)
+            else
             {
-                collapseAction(this);
+                collapseAction?.Invoke(this);
             }
 
             UpdateButtonText();

@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace KerbalLaunchVehicles
 {
-    [KSPAddon(KSPAddon.Startup.SpaceCentre, false)]
+    [KSPAddon(KSPAddon.Startup.SpaceCentre, true)]
     internal class KLVCore : MonoBehaviour
     {
         private static List<VehicleFamily> _allVehicleFamilies;
@@ -53,6 +53,7 @@ namespace KerbalLaunchVehicles
         public void Awake()
         {
             //Called 1st
+            SaveManager.ValidatePaths();
             SaveManager.LoadSettings();
         }
 
