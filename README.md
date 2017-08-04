@@ -1,4 +1,4 @@
-Kerbal Launch Vehicles v0.1.7
+Kerbal Launch Vehicles v0.1.8
 =============================
 
 
