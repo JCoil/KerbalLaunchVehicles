@@ -1,3 +1,8 @@
+0.1.9
+
+Added families tab to Editor window to allow easy editing during construction
+Enabled drag-and-drop of vessel sections to create new lunch vehicle
+
 0.1.8
 
 Fixed new window call during OnGUI for comboboxes, now expanded during Update
