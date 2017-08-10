@@ -23,12 +23,6 @@ namespace KerbalLaunchVehicles.klvGUI
             SaveManager.RefreshPaths();
         }
 
-        // Families Tab
-        protected GUIListNode familyList;
-        protected GUITextBox textEditFamily;
-        protected GUIButton buttonSaveFamily;
-        protected GUIButton buttonCancelFamilyEdit;
-
         // Destinations Tab
         private GUITextBox textAddDestination;
         private GUIButton buttonAddDest;
@@ -45,11 +39,6 @@ namespace KerbalLaunchVehicles.klvGUI
         protected override void CreateControls()
         {
             base.CreateControls();
-
-            // Families Tab
-            UpdateFamilies();
-            SetFamilyEditState(false);
-            buttonCancelFamilyEdit = new GUIButton("Cancel", DoCancelFamilyEdit, new GUILayoutOption[] { GUILayout.Width(70) });
 
             // Destinations Tab
             textAddDestination = new GUITextBox("Add Destination: ", "", "", 180, 300, DoAddDestination);
@@ -92,43 +81,12 @@ namespace KerbalLaunchVehicles.klvGUI
             GlobalSettings.SPCWindowPos = WindowRect.position;
         }
 
-        private void UpdateFamilies()
-        {
-            if (GlobalSettings.AllowFamilyEdit)
-            {
-                familyList = GUIListNode.CreateListNode3Lvl(KLVCore.GetFullVehicleSummary(), null, null, DoBeginFamilyEdit);
-            }
-            else
-            {
-                familyList = GUIListNode.CreateListNode3Lvl(KLVCore.GetFullVehicleSummary());
-            }
-        }
-
         //Displays
 
-        private VehicleFamily editingFamily;
-
-        protected void DisplayFamilies()
+        protected override void DisplayFamilies(bool forceNoEdit = false)
         {
             LayoutGUIList(familyList, 425, 270);
-            var editFamilyCheckState = GUILayout.Toggle(GlobalSettings.AllowFamilyEdit, "  Edit Family Names");
-
-            if(editFamilyCheckState != GlobalSettings.AllowFamilyEdit)
-            {
-                GlobalSettings.AllowFamilyEdit = editFamilyCheckState;
-                UpdateFamilies();
-            }
-
-            GUILayout.BeginHorizontal();
-            // Decide whether we're adding or editing, whether to display button with what text
-            LayoutTextInput(textEditFamily, buttonSaveFamily, KLVCore.FamilyAvailable, "Already Exists!", editingFamily != null,
-                (editingFamily != null && GlobalSettings.AllowFamilyEdit) ? klvGUIStyles.CorrectButton : null);
-
-            if (editingFamily != null)
-            {
-                buttonCancelFamilyEdit.DoLayout();
-            }
-            GUILayout.EndHorizontal();
+            base.DisplayFamilies(forceNoEdit);
         }
 
         private void DisplayDestinations()
@@ -148,7 +106,7 @@ namespace KerbalLaunchVehicles.klvGUI
 
             GUILayout.EndHorizontal();
         }
-
+        
         private void DisplaySettings()
         {
             textFolderPath.DoLayout(klvGUIStyles.StandardLabel);
@@ -158,7 +116,8 @@ namespace KerbalLaunchVehicles.klvGUI
 #if DEBUG
             buttonUnload.DoLayout(klvGUIStyles.StandardButton);
 #endif
-
+            GUILayout.Space(5);
+            GlobalSettings.AllowVehicleDrop = GUILayout.Toggle(GlobalSettings.AllowVehicleDrop, "  Enable launch vehicle drop zone");
             GUILayout.Space(10);
             GUILayout.BeginHorizontal(GUILayout.Width(270));
             GUILayout.Label("Adjust font size", klvGUIStyles.StandardLabel);
@@ -181,70 +140,6 @@ namespace KerbalLaunchVehicles.klvGUI
         {
             comboDestination.SetExpanded(false);
             base.DoChangeTab(sender, value);
-        }
-
-        //Families
-
-        private void SetFamilyEditState(bool isEditing)
-        {
-            if (isEditing)
-            {
-                textEditFamily = new GUITextBox("Edit Family:", "", "", 140, 225, DoSaveFamily);
-                buttonSaveFamily = new GUIButton("Save", DoSaveFamily, new GUILayoutOption[] { GUILayout.Width(118) });
-            }
-            else
-            {
-                textEditFamily = new GUITextBox("Add Family:", "", "", 140, 225, DoSaveFamily);
-                buttonSaveFamily = new GUIButton("Add", DoSaveFamily, new GUILayoutOption[] { GUILayout.Width(118) });
-            }
-        }
-
-        protected virtual void DoBeginFamilyEdit(GUIButton sender, object value)
-        {
-            if (value != null && GlobalSettings.AllowFamilyEdit)
-            {
-                var family = KLVCore.GetVehicleFamily(value.ToString().Trim());
-
-                if (family != null)
-                {
-                    editingFamily = family;
-                    SetFamilyEditState(true);
-                    textEditFamily.SetText(editingFamily.Name);
-                    textEditFamily.SetEditing(true);
-                }
-            }
-        }
-
-        protected virtual void DoSaveFamily(GUIButton sender, object value)
-        {
-            if (!string.IsNullOrEmpty(value.ToString()) && KLVCore.FamilyAvailable(value.ToString()))
-            {
-                if (editingFamily == null)
-                {
-                    //Adding new family
-                    KLVCore.AddVehicleFamily(value.ToString());
-                }
-                else
-                {
-                    //Editing existing family
-                    editingFamily.SetName(value.ToString());
-                    editingFamily = null;
-                }
-
-                KLVCore.Save();
-                KLVCore.UpdateAllVehicleNameSchemes();
-                UpdateFamilies();
-                textEditFamily.SetText("");
-                textEditFamily.SetEditing(false);
-
-                SetFamilyEditState(false);
-            }
-        }
-
-        protected virtual void DoCancelFamilyEdit(GUIButton sender, object value)
-        {
-            editingFamily = null;
-            SetFamilyEditState(false);
         }
 
         //Destinations

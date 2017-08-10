@@ -68,35 +68,37 @@ namespace KerbalLaunchVehicles.klvGUI
 
         // Suggestions Tab
 
-        protected static GUIListNode familyList;
+        protected static GUIListNode editVehicleList;
         private GUIButton buttonUpdateSuggestions;
         private GUIListNode listSuggestions;
         private GUIButton buttonGetSuggestion;
 
         private bool prevIgnoreMass = false;
         private bool ignoreMass = false;
+        private string failedSubassembly;
+        private bool addingNewVehicle = false;
 
         protected override void CreateControls()
         {
             base.CreateControls();
 
             //Tabs
-            buttonTabSubassemblies = new GUIButton("Get Launch Vehicle", DoChangeTab, new GUILayoutOption[] { GUILayout.ExpandWidth(true) });
+            buttonTabSubassemblies = new GUIButton("Get Vehicle", DoChangeTab, new GUILayoutOption[] { GUILayout.ExpandWidth(true) });
 
             //Edit Vehicle
-            textVehicleName = new GUITextBox("Vehicle Name: ", "", "", 150, 250);
-            textVehicleNote = new GUIFreeText("Notes...", 450, 60);
+            textVehicleName = new GUITextBox("Name :", "", "", 150, 210);
+            textVehicleNote = new GUIFreeText("Notes...", 475, 60);
             buttonSaveVehicle = new GUIButton("Save Vehicle", DoSaveVehicle, new GUILayoutOption[] { GUILayout.Width(165) });
             buttonCancelVehicleEdit = new GUIButton("Cancel", EndVehicleEdit, new GUILayoutOption[] { GUILayout.Width(85) });
-            comboFamily = new DropDown(new Vector2(150, 100), KLVCore.GetAllFamilyNames());
+            comboFamily = new DropDown(new Vector2(180, 108), KLVCore.GetAllFamilyNames(), null, "Select Family");
             RegisterCombos(comboFamily);
-            familyList = GUIListNode.CreateListNode3Lvl(KLVCore.GetFullVehicleSummary(), null, DoEditVehicle);
+            editVehicleList = GUIListNode.CreateListNode3Lvl(KLVCore.GetFullVehicleSummary(), null, DoEditVehicle);
             dropZone = new GUIButton("ADD VESSEL AS LAUNCH VEHICLE", DoAddSubassembly, new GUILayoutOption[] { GUILayout.Height(60) });
             buttonAddLaunchConfig = new GUIButton("Add Launch Config", DoAddLaunchConfig, new GUILayoutOption[] { GUILayout.Width(175) });
 
             //Suggestions
             buttonUpdateSuggestions = new GUIButton("Update Suggestions", DoUpdateLists, new GUILayoutOption[] { GUILayout.Width(180) });
-            buttonGetSuggestion = new GUIButton("Load", DoLoadSubassembly, new GUILayoutOption[] { GUILayout.Width(80) });
+            buttonGetSuggestion = new GUIButton("Load", DoLoadSuggestion, new GUILayoutOption[] { GUILayout.Width(80) });
 
             DoUpdateLists();
         }
@@ -117,9 +119,13 @@ namespace KerbalLaunchVehicles.klvGUI
 
             //Change tab styles based on editing
             buttonTabVehicles.DoLayout(openTab == ViewTab.Vehicles ? klvGUIStyles.TabButtonActive : klvGUIStyles.TabButton,
-                editingVehicle != null || EditorLogic.RootPart == null ? "Edit Launch Vehicle" : "Add Launch Vehicle", ViewTab.Vehicles);
-            buttonTabSubassemblies.DoLayout(editingVehicle != null ? klvGUIStyles.TabButtonDisabled :
-                (openTab == ViewTab.Suggestions ? klvGUIStyles.TabButtonActive : klvGUIStyles.TabButton), null, ViewTab.Suggestions);
+                editingVehicle != null || EditorLogic.RootPart == null ? "Edit Vehicle" : "Add Vehicle", ViewTab.Vehicles);
+
+            buttonTabSubassemblies.DoLayout(editingVehicle != null || selectedRootPart != null ? klvGUIStyles.TabButtonDisabled :
+                (openTab == ViewTab.Suggestions? klvGUIStyles.TabButtonActive : klvGUIStyles.TabButton), null, ViewTab.Suggestions);
+
+            buttonTabFamilies.DoLayout(editingVehicle != null || selectedRootPart != null ? klvGUIStyles.TabButtonDisabled :
+                (openTab == ViewTab.Families ? klvGUIStyles.TabButtonActive : klvGUIStyles.TabButton), null, ViewTab.Families);
             GUILayout.EndHorizontal();
 
             tabDivider.DoLayout();
@@ -128,105 +134,13 @@ namespace KerbalLaunchVehicles.klvGUI
             {
                 case ViewTab.Vehicles: { DisplayVehicles(); break; }
                 case ViewTab.Suggestions: { DisplaySuggestions(); break; }
+                case ViewTab.Families: { DisplayFamilies(true); break; }
                 default: { break; }
             }
 
             GUILayout.EndVertical();
             GUI.DragWindow();
             GlobalSettings.EditorWindowPos = WindowRect.position;
-        }
-
-        private void DisplayVehicles()
-        {
-            if (selectedRootPart == null)
-            {
-                GUILayout.Space(10);
-
-                if (EditorLogic.RootPart == null)
-                {
-                    // If building is empty, allow select vehicle to edit
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Edit existing Launch Vehicle", klvGUIStyles.HeaderLabel);
-                    GUILayout.EndHorizontal();
-                    LayoutGUIList(familyList, 340, 350);
-                }
-                else
-                {
-                    // If building occupied only allow add new vehicle
-                    dropZone.DoLayout(klvGUIStyles.HighlightBox);
-                    GUILayout.Space(5);
-
-                    isRootPartDecoupler = EditorLogic.RootPart.partInfo == null;
-
-//Coupling not available in ksp1.1 so we won't warn on this
-#if !VERSION1_1
-                    isRootPartDecoupler = isRootPartDecoupler || EditorLogic.RootPart.partInfo.category == PartCategories.Coupling;
-#else
-                    isRootPartDecoupler = true;
-#endif
-
-                    GUILayout.Label(isRootPartDecoupler ? "" : "It is recommended to set a decoupler as the root part to detach the payload", klvGUIStyles.WarningLabel);
-                    GUILayout.Space(10);
-
-                    GUILayout.Label("To edit an existing vehicle, clear the building", klvGUIStyles.HeaderLabel);
-                }
-            }
-            else
-            {
-                GUILayout.Label(editingVehicle == null ? "Add New Launch Vehicle" : "Edit Launch Vehicle", klvGUIStyles.HeaderLabel);
-                GUILayout.Space(5);
-
-                GUILayout.BeginHorizontal();
-                outputVehicleName = textVehicleName.DoLayout();
-                comboFamily.DoLayout(editingVehicle == null ? null : klvGUIStyles.DisabledButton, editingVehicle == null ? true : false);
-                GUILayout.EndHorizontal();
-
-                outputVehicleNote = textVehicleNote.DoLayout();
-
-                GUILayout.Label("Vehicle dry mass: " + vehicleDryMass.ToString("0.###") + "t", klvGUIStyles.StandardLabel);
-                GUILayout.Label("Vehicle wet mass: " + vehicleWetMass.ToString("0.###") + "t", klvGUIStyles.StandardLabel);
-
-
-                GUILayout.BeginHorizontal(GUILayout.ExpandWidth(false));
-                buttonCancelVehicleEdit.DoLayout(klvGUIStyles.StandardButton);
-
-                if (!string.IsNullOrEmpty(outputVehicleName.ToString()))
-                {
-                    if (string.IsNullOrEmpty(comboFamily.selectedItemName))
-                    {
-                        buttonSaveVehicle.DoLayout(klvGUIStyles.WarningButton, "Select family", null);
-                    }
-                    else if (!KLVCore.VehicleAvailable(comboFamily.selectedItemName, outputVehicleName.ToString(), editingVehicle))
-                    {
-                        buttonSaveVehicle.DoLayout(klvGUIStyles.WarningButton, "Vehicle exists!", null);
-                    }
-                    else if (isAddingConfig && !launchConfigsGood)
-                    {
-                        buttonSaveVehicle.DoLayout(klvGUIStyles.WarningButton, configErrorReason, null);
-                    }
-                    else
-                    {
-                        buttonSaveVehicle.DoLayout(klvGUIStyles.CorrectButton, "Save Vehicle", outputVehicleName.ToString());
-                    }
-
-                    if (maxNewConfigs > newConfigs.Count())
-                    {
-                        buttonAddLaunchConfig.DoLayout(klvGUIStyles.StandardButton, "Add Launch Config", true);
-                    }
-                    else
-                    {
-                        buttonAddLaunchConfig.DoLayout(klvGUIStyles.WarningButton, "Max new Configs", null);
-                    }
-                }
-                GUILayout.EndHorizontal();
-
-                launchConfigsGood = true;
-                configErrorReason = "";
-                for (int i = 0; i < newConfigs.Count(); i++)
-                {
-                    launchConfigsGood = LayoutLaunchConfigEdit(i) && launchConfigsGood;
-                }
-            }
         }
 
         private bool LayoutLaunchConfigEdit(int index)
@@ -266,7 +180,106 @@ namespace KerbalLaunchVehicles.klvGUI
 
             return correct;
         }
-        
+
+        //Displays
+        private void DisplayVehicles()
+        {
+            if (selectedRootPart == null)
+            {
+                GUILayout.Space(10);
+
+                if (EditorLogic.RootPart == null)
+                {
+                    // If building is empty, allow select vehicle to edit
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Edit existing Launch Vehicle", klvGUIStyles.HeaderLabel);
+                    GUILayout.EndHorizontal();
+                    GUILayout.Label(String.IsNullOrEmpty(failedSubassembly) ? "" : "Could not find " + failedSubassembly, klvGUIStyles.WarningLabel);
+                    LayoutGUIList(editVehicleList, 340, 350);
+                }
+                else
+                {
+                    // If building occupied only allow add new vehicle
+                    // If we allow dropping parts, display here
+                    dropZone.DoLayout(klvGUIStyles.HighlightBox, GlobalSettings.AllowVehicleDrop && EditorLogic.SelectedPart != null ?
+                        "DROP PART AS LAUNCH VEHICLE" : "ADD VESSEL AS LAUNCH VEHICLE");
+                    GUILayout.Space(5);
+
+                    isRootPartDecoupler = (GlobalSettings.AllowVehicleDrop && EditorLogic.SelectedPart != null ?
+                        EditorLogic.SelectedPart : EditorLogic.RootPart).partInfo == null;
+
+                    //Coupling not available in ksp1.1 so we won't warn on this
+#if !VERSION1_1
+                    isRootPartDecoupler = isRootPartDecoupler || (GlobalSettings.AllowVehicleDrop && EditorLogic.SelectedPart != null ?
+                        EditorLogic.SelectedPart : EditorLogic.RootPart).partInfo.category == PartCategories.Coupling;
+#else
+                    isRootPartDecoupler = true;
+#endif
+                    
+                    GUILayout.Label(isRootPartDecoupler ? "" : "It is recommended to use a decoupler as the root part to detach the payload", klvGUIStyles.WarningLabel);
+                    GUILayout.Space(10);
+
+                    GUILayout.Label("To edit an existing vehicle, clear the building", klvGUIStyles.HeaderLabel);
+                }
+            }
+            else
+            {
+                GUILayout.Label(editingVehicle == null ? "Add New Launch Vehicle" : "Edit Launch Vehicle", klvGUIStyles.HeaderLabel);
+                GUILayout.Space(5);
+
+                GUILayout.BeginHorizontal();
+                outputVehicleName = textVehicleName.DoLayout();
+                comboFamily.DoLayout(editingVehicle == null ? null : klvGUIStyles.DisabledButton, editingVehicle == null ? true : false);
+                GUILayout.EndHorizontal();
+
+                outputVehicleNote = textVehicleNote.DoLayout();
+
+                GUILayout.Label("Vehicle dry mass: " + vehicleDryMass.ToString("0.###") + "t", klvGUIStyles.StandardLabel);
+                GUILayout.Label("Vehicle wet mass: " + vehicleWetMass.ToString("0.###") + "t", klvGUIStyles.StandardLabel);
+
+
+                GUILayout.BeginHorizontal(GUILayout.ExpandWidth(false));
+                buttonCancelVehicleEdit.DoLayout(klvGUIStyles.StandardButton);
+
+                if (!string.IsNullOrEmpty(outputVehicleName.ToString()))
+                {
+                    if (string.IsNullOrEmpty(comboFamily.selectedItemName))
+                    {
+                        buttonSaveVehicle.DoLayout(klvGUIStyles.WarningButton, "Family missing!", null);
+                    }
+                    else if (!KLVCore.VehicleAvailable(comboFamily.selectedItemName, outputVehicleName.ToString(), editingVehicle))
+                    {
+                        buttonSaveVehicle.DoLayout(klvGUIStyles.WarningButton, "Vehicle exists!", null);
+                    }
+                    else if (isAddingConfig && !launchConfigsGood)
+                    {
+                        buttonSaveVehicle.DoLayout(klvGUIStyles.WarningButton, configErrorReason, null);
+                    }
+                    else
+                    {
+                        buttonSaveVehicle.DoLayout(klvGUIStyles.CorrectButton, "Save Vehicle", outputVehicleName.ToString());
+                    }
+
+                    if (maxNewConfigs > newConfigs.Count())
+                    {
+                        buttonAddLaunchConfig.DoLayout(klvGUIStyles.StandardButton, "Add Launch Config", true);
+                    }
+                    else
+                    {
+                        buttonAddLaunchConfig.DoLayout(klvGUIStyles.WarningButton, "Max new Configs", null);
+                    }
+                }
+                GUILayout.EndHorizontal();
+
+                launchConfigsGood = true;
+                configErrorReason = "";
+                for (int i = 0; i < newConfigs.Count(); i++)
+                {
+                    launchConfigsGood = LayoutLaunchConfigEdit(i) && launchConfigsGood;
+                }
+            }
+        }
+
         private void DisplaySuggestions()
         {
             GUILayout.BeginHorizontal(GUILayout.Width(250), GUILayout.ExpandWidth(false));
@@ -302,10 +315,17 @@ namespace KerbalLaunchVehicles.klvGUI
             GUILayout.EndHorizontal();
         }
 
+        protected override void DisplayFamilies(bool forceNoEdit = false)
+        {
+            LayoutGUIList(familyList, 425, 375);
+            base.DisplayFamilies(forceNoEdit);
+        }
+
+        //Button Actions
         protected override void DoChangeTab(GUIButton sender, object value)
         {
             // Don't allow change tab if editing a vehicle
-            if (editingVehicle == null)
+            if (editingVehicle == null && selectedRootPart == null)
             {
                 EndVehicleEdit();
                 DoUpdateLists(sender, value);
@@ -325,28 +345,35 @@ namespace KerbalLaunchVehicles.klvGUI
                     {
                         StageManager.Instance.DeleteEmptyStages();
 
-                        Debug.Log(vehicle.SubassemblyName);
-                        DoLoadSubassembly(sender, vehicle.SubassemblyName);
-                        DoAddSubassembly(sender, vehicle.SubassemblyName);
-
-                        textVehicleName.SetText(vehicle.Name);
-                        textVehicleName.SetEditing(true);
-                        outputVehicleName = vehicle.Name;
-
-                        textVehicleNote.SetText(String.IsNullOrEmpty(vehicle.Note) ? "Note..." : vehicle.Note);
-                        textVehicleNote.SetEditing(true);
-                        outputVehicleNote = vehicle.Note;
-
-                        comboFamily.SetSelection(vehicle.Parent.Name);
-                        comboFamily.SetExpanded(false);
-
-                        for (int i = 0; i < vehicle.AllLaunchConfigs.Count; i++)
+                        //Debug.Log(vehicle.SubassemblyName);
+                        failedSubassembly = "";
+                        if (DoLoadSubassembly(sender, vehicle.SubassemblyName))
                         {
-                            AddConfig(vehicle.AllLaunchConfigs[i]);
-                            comboAllDestinations[i].SetExpanded(false);
-                        }
+                            DoAddSubassembly(sender, vehicle.SubassemblyName);
 
-                        editingVehicle = vehicle;
+                            textVehicleName.SetText(vehicle.Name);
+                            textVehicleName.SetEditing(true);
+                            outputVehicleName = vehicle.Name;
+
+                            textVehicleNote.SetText(String.IsNullOrEmpty(vehicle.Note) ? "Note..." : vehicle.Note);
+                            textVehicleNote.SetEditing(true);
+                            outputVehicleNote = vehicle.Note;
+
+                            comboFamily.SetSelection(vehicle.Parent.Name);
+                            comboFamily.SetExpanded(false);
+
+                            for (int i = 0; i < vehicle.AllLaunchConfigs.Count; i++)
+                            {
+                                AddConfig(vehicle.AllLaunchConfigs[i]);
+                                comboAllDestinations[i].SetExpanded(false);
+                            }
+
+                            editingVehicle = vehicle;
+                        }
+                        else
+                        {
+                            failedSubassembly = vehicle.SubassemblyName;
+                        }
                     }
                 }
             }
@@ -384,7 +411,7 @@ namespace KerbalLaunchVehicles.klvGUI
                         }
                         catch (NullReferenceException)
                         {
-                            GUIUtilities.Log("Saving subassembly button error");
+                            //GUIUtilities.Log("Saving subassembly button error");
                         }
                     }
                     EndVehicleEdit();
@@ -484,9 +511,16 @@ namespace KerbalLaunchVehicles.klvGUI
         {
             if (EditorLogic.SelectedPart == null)
             {
-                // End any previous edit
+                // If creating vehicle directly
                 EndVehicleEdit();
                 selectedRootPart = EditorLogic.RootPart;
+                GetSubassemblyTotalMass(selectedRootPart, out vehicleDryMass, out vehicleFuelMass);
+            }
+            else if(GlobalSettings.AllowVehicleDrop)
+            {
+                // If dropping part of larger vessel
+                EndVehicleEdit();
+                selectedRootPart = EditorLogic.SelectedPart;
                 GetSubassemblyTotalMass(selectedRootPart, out vehicleDryMass, out vehicleFuelMass);
             }
         }
@@ -530,11 +564,18 @@ namespace KerbalLaunchVehicles.klvGUI
             listSuggestions = GUIListNode.CreateListNode2Lvl(KLVCore.GetVehicleSuggestions(payloadMass, ignoreMass), null, DoShowSuggestionInfo);
             listSuggestions.SetCollapsedAll(false);
             listSuggestions.SetLevelStyle(2, klvGUIStyles.PanelLabel);
-            familyList = GUIListNode.CreateListNode3Lvl(KLVCore.GetFullVehicleSummary(), null, DoEditVehicle);
+            editVehicleList = GUIListNode.CreateListNode3Lvl(KLVCore.GetFullVehicleSummary(), null, DoEditVehicle);
+            UpdateFamilies(true);
         }
 
-        protected void DoLoadSubassembly(GUIButton sender, object value)
+        protected void DoLoadSuggestion(GUIButton sender, object value)
         {
+            DoLoadSubassembly(sender, value);
+        }
+
+        protected bool DoLoadSubassembly(GUIButton sender, object value)
+        {
+            bool loadSuccessful = true;
             if (suggestedVehicle != null)
             {
                 ShipTemplate subassembly = null;
@@ -544,6 +585,10 @@ namespace KerbalLaunchVehicles.klvGUI
                 if (subassembly != null)
                 {
                     EditorLogic.fetch.SpawnTemplate(subassembly);
+                }
+                else
+                {
+                    loadSuccessful = false;
                 }
                 suggestedVehicle = null;
             }
@@ -556,7 +601,13 @@ namespace KerbalLaunchVehicles.klvGUI
                 {
                     EditorLogic.fetch.SpawnTemplate(subassembly);
                 }
+                else
+                {
+                    loadSuccessful = false;
+                }
             }
+
+            return loadSuccessful;
         }
 
         protected void DoShowSuggestionInfo(GUIButton sender, object value)

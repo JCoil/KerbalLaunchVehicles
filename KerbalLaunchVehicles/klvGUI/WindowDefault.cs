@@ -9,7 +9,7 @@ namespace KerbalLaunchVehicles.klvGUI
     internal class WindowDefault : MonoBehaviour
     {
         private Texture2D KLVButtonImage;
-        private ApplicationLauncherButton Button;
+        private ApplicationLauncherButton LauncherButton;
         protected ApplicationLauncher.AppScenes visibleInScenes;
         protected bool isWindowOpen;
 
@@ -33,7 +33,7 @@ namespace KerbalLaunchVehicles.klvGUI
             KLVCore.Load();
             var App = ApplicationLauncher.Instance;
             KLVButtonImage = GameDatabase.Instance.GetTexture("KerbalLaunchVehicles/Assets/launcherIcon", false);
-            Button = App.AddModApplication(OnLauncherButtonPress, OnLauncherButtonPress, null, null, null, null, visibleInScenes, KLVButtonImage);
+            LauncherButton = App.AddModApplication(OnLauncherButtonPress, OnLauncherButtonPress, null, null, null, null, visibleInScenes, KLVButtonImage);
             GUIUtilities.Log("[MOD] KLV window start");
             ActiveCombos = new HashSet<DropDown>();
             MarkedCombos = new Dictionary<klvGUI.DropDown, bool>();
@@ -106,9 +106,9 @@ namespace KerbalLaunchVehicles.klvGUI
         public void OnDisable()
         {
             isWindowOpen = false;
-            if (Button != null)
+            if (LauncherButton != null)
             {
-                ApplicationLauncher.Instance.RemoveModApplication(Button);
+                ApplicationLauncher.Instance.RemoveModApplication(LauncherButton);
             }
             SaveManager.SaveSettings();
         }
@@ -149,6 +149,12 @@ namespace KerbalLaunchVehicles.klvGUI
         protected GUIButton buttonTabSettings;
         protected GUIButton buttonTabSubassemblies;
 
+        // Families Tab
+        protected GUIListNode familyList;
+        protected GUITextBox textEditFamily;
+        protected GUIButton buttonSaveFamily;
+        protected GUIButton buttonCancelFamilyEdit;
+
         protected DropDown comboDestination;
 
         protected virtual void CreateControls()
@@ -158,7 +164,54 @@ namespace KerbalLaunchVehicles.klvGUI
             buttonTabFamilies = new GUIButton("Families", DoChangeTab, new GUILayoutOption[] { GUILayout.ExpandWidth(true) });
             buttonTabDestinations = new GUIButton("Destinations", DoChangeTab, new GUILayoutOption[] { GUILayout.ExpandWidth(true) });
             buttonTabSettings = new GUIButton("Settings", DoChangeTab, new GUILayoutOption[] { GUILayout.ExpandWidth(true) });
-            buttonTabVehicles = new GUIButton("Add Launch Vehicle", DoChangeTab, new GUILayoutOption[] { GUILayout.ExpandWidth(true) });
+            buttonTabVehicles = new GUIButton("Add Vehicle", DoChangeTab, new GUILayoutOption[] { GUILayout.ExpandWidth(true) });
+
+            // Families Tab
+            UpdateFamilies();
+            SetFamilyEditState(false);
+            buttonCancelFamilyEdit = new GUIButton("Cancel", DoCancelFamilyEdit, new GUILayoutOption[] { GUILayout.Width(70) });
+        }
+
+        protected void UpdateFamilies(bool forceNoEdit = false)
+        {
+            if (!forceNoEdit && GlobalSettings.AllowFamilyEdit)
+            {
+                familyList = GUIListNode.CreateListNode3Lvl(KLVCore.GetFullVehicleSummary(), null, null, DoBeginFamilyEdit);
+            }
+            else
+            {
+                familyList = GUIListNode.CreateListNode3Lvl(KLVCore.GetFullVehicleSummary());
+            }
+        }
+
+        // Displays
+
+        private VehicleFamily editingFamily;
+        bool editFamilyCheckState;
+
+        protected virtual void DisplayFamilies(bool forceNoEdit = false)
+        {
+            if (!forceNoEdit)
+            {
+                editFamilyCheckState = GUILayout.Toggle(GlobalSettings.AllowFamilyEdit, "  Edit Family Names");
+
+                if (editFamilyCheckState != GlobalSettings.AllowFamilyEdit)
+                {
+                    GlobalSettings.AllowFamilyEdit = editFamilyCheckState;
+                    UpdateFamilies();
+                }
+            }
+
+            GUILayout.BeginHorizontal();
+            // Decide whether we're adding or editing, whether to display button with what text
+            LayoutTextInput(textEditFamily, buttonSaveFamily, KLVCore.FamilyAvailable, "Already Exists!", editingFamily != null,
+                (editingFamily != null && GlobalSettings.AllowFamilyEdit) ? klvGUIStyles.CorrectButton : null);
+
+            if (editingFamily != null)
+            {
+                buttonCancelFamilyEdit.DoLayout();
+            }
+            GUILayout.EndHorizontal();
         }
 
         // Layout
@@ -193,6 +246,70 @@ namespace KerbalLaunchVehicles.klvGUI
                 button.DoLayout(invalidStyle ?? klvGUIStyles.WarningButton, "No Name!", "");
             }
             GUILayout.EndHorizontal();
+        }
+
+        //Families
+
+        private void SetFamilyEditState(bool isEditing)
+        {
+            if (isEditing)
+            {
+                textEditFamily = new GUITextBox("Edit Family:", "", "", 140, 225, DoSaveFamily);
+                buttonSaveFamily = new GUIButton("Save", DoSaveFamily, new GUILayoutOption[] { GUILayout.Width(118) });
+            }
+            else
+            {
+                textEditFamily = new GUITextBox("Add Family:", "", "", 140, 225, DoSaveFamily);
+                buttonSaveFamily = new GUIButton("Add", DoSaveFamily, new GUILayoutOption[] { GUILayout.Width(118) });
+            }
+        }
+
+        protected virtual void DoBeginFamilyEdit(GUIButton sender, object value)
+        {
+            if (value != null && GlobalSettings.AllowFamilyEdit)
+            {
+                var family = KLVCore.GetVehicleFamily(value.ToString().Trim());
+
+                if (family != null)
+                {
+                    editingFamily = family;
+                    SetFamilyEditState(true);
+                    textEditFamily.SetText(editingFamily.Name);
+                    textEditFamily.SetEditing(true);
+                }
+            }
+        }
+
+        protected virtual void DoSaveFamily(GUIButton sender, object value)
+        {
+            if (!string.IsNullOrEmpty(value.ToString()) && KLVCore.FamilyAvailable(value.ToString()))
+            {
+                if (editingFamily == null)
+                {
+                    //Adding new family
+                    KLVCore.AddVehicleFamily(value.ToString());
+                }
+                else
+                {
+                    //Editing existing family
+                    editingFamily.SetName(value.ToString());
+                    editingFamily = null;
+                }
+
+                KLVCore.Save();
+                KLVCore.UpdateAllVehicleNameSchemes();
+                UpdateFamilies();
+                textEditFamily.SetText("");
+                textEditFamily.SetEditing(false);
+
+                SetFamilyEditState(false);
+            }
+        }
+
+        protected virtual void DoCancelFamilyEdit(GUIButton sender, object value)
+        {
+            editingFamily = null;
+            SetFamilyEditState(false);
         }
 
         // Button Actions

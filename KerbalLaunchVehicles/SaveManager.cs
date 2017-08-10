@@ -75,6 +75,7 @@ namespace KerbalLaunchVehicles
         private const string key_fontSize = "FONTSIZE";
         private const string key_SPCWindowPos = "SPCWINDOW";
         private const string key_EditorWindowPos = "EDITWINDOW";
+        private const string key_DropVehicle = "ENABLEDROPZONE";
 
         private static void LoadRootNode()
         {
@@ -279,6 +280,10 @@ namespace KerbalLaunchVehicles
                 {
                     GlobalSettings.EditorWindowPos = ConfigNode.ParseVector2(settingsNode.GetValue(key_EditorWindowPos));
                 }
+                if (settingsNode.HasValue(key_DropVehicle))
+                {
+                    Boolean.TryParse(settingsNode.GetValue(key_DropVehicle), out GlobalSettings.AllowVehicleDrop);
+                }
             }
         }
 
@@ -289,6 +294,7 @@ namespace KerbalLaunchVehicles
             settingsNode.AddValue(key_fontSize, klvGUI.klvGUIStyles.fontSizeRelative, "Font size adjustment between -2 and 4");
             settingsNode.AddValue(key_SPCWindowPos, GlobalSettings.SPCWindowPos);
             settingsNode.AddValue(key_EditorWindowPos, GlobalSettings.EditorWindowPos);
+            settingsNode.AddValue(key_DropVehicle, GlobalSettings.AllowVehicleDrop);
 
             settingsNode.Save(settingsPath);
         }
