@@ -8,6 +8,11 @@ Installation
 
 Add the folder 'KerbalLaunchVehicles' to your GameData folder
 
+Configurations
+==============
+
+If you want default configurations, copy the Launch Destinations from one of the config files
+
 License
 =======
 
